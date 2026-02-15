@@ -114,25 +114,38 @@ def analyze_post_structure(post, config):
     ]
     internal_link_count = len(internal_links)
 
-    # 5. メタディスクリプション取得（WordPress REST API経由）
+    # 5. メタディスクリプション取得（AIOSEO API経由）
     meta_desc = ''
     meta_desc_length = 0
     has_meta_desc = False
 
-    # WordPress REST APIで記事のmetaを取得
+    # AIOSEO APIで記事のメタディスクリプションを取得
     post_id = post['id']
-    meta_url = f"{config['WORDPRESS_URL']}/wp-json/wp/v2/posts/{post_id}"
+    aioseo_url = f"{config['WORDPRESS_URL']}/wp-json/aioseo/v1/post"
     auth = (config["WORDPRESS_USERNAME"], config["WORDPRESS_APPLICATION_PASSWORD"])
 
     try:
-        response = requests.get(meta_url, params={'context': 'edit'}, auth=auth)
+        # AIOSEO APIはPOSTリクエストで記事情報を取得
+        response = requests.post(aioseo_url, json={'id': post_id}, auth=auth)
         if response.status_code == 200:
-            post_data = response.json()
-            if 'meta' in post_data and '_yoast_wpseo_metadesc' in post_data['meta']:
-                meta_desc = post_data['meta']['_yoast_wpseo_metadesc']
-                if meta_desc:
-                    has_meta_desc = True
-                    meta_desc_length = len(meta_desc)
+            result = response.json()
+            # AIOSEO APIのレスポンスからdescriptionを取得
+            # 注: AIOSEOのレスポンス形式が不明なため、HTMLから直接取得する方法に変更
+            # 代わりに記事ページのHTMLメタタグから取得
+            pass
+    except Exception:
+        pass
+
+    # HTMLメタタグから直接取得する方法（より確実）
+    try:
+        page_response = requests.get(post['link'])
+        if page_response.status_code == 200:
+            page_soup = BeautifulSoup(page_response.text, 'html.parser')
+            meta_tag = page_soup.find('meta', attrs={'name': 'description'})
+            if meta_tag and meta_tag.get('content'):
+                meta_desc = meta_tag.get('content')
+                has_meta_desc = True
+                meta_desc_length = len(meta_desc)
     except Exception:
         pass  # メタディスクリプション取得失敗時はスキップ
 
