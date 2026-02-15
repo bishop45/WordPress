@@ -59,36 +59,83 @@
 
 ## 📚 利用可能な Skills
 
-### `/write-post` - AdSense対応記事生成
+### `/write-post` - AdSense対応記事生成・投稿（✨ 自動化対応！）
 
-**説明**: AdSense審査に合格する記事を自動生成します。
+**説明**: AdSense審査に合格する記事を自動生成し、WordPress投稿、画像設定、メタディスクリプション設定、バックアップまで一気通貫で実行します。
 
 **使い方**:
 ```bash
-/write-post <テーマ> [--target 初心者/中級者/上級者] [--words 文字数] [--category カテゴリ]
+/write-post <テーマ> [オプション]
 ```
+
+**基本オプション**:
+- `--target 初心者/中級者/上級者` - 読者ターゲット（デフォルト: 初心者）
+- `--words 文字数` - 目標文字数（デフォルト: 1000-1500）
+- `--category カテゴリ` - カテゴリ（プログラミング/アプリ開発/副業/投資/生成AI/セキュリティ）
+
+**投稿設定**:
+- `--publish` - 記事を即座に公開（デフォルト）
+- `--draft` - 下書きとして保存（公開しない）
+- `--auto` - 投稿後、画像・タグ・メタディスクリプションを自動設定（デフォルト: true）
+- `--no-auto` - 自動設定をスキップ
+- `--backup` - 完了後にバックアップを実行（デフォルト: true）
+- `--no-backup` - バックアップをスキップ
+
+**画像設定**:
+- `--image-source unsplash` - Unsplashから画像を自動取得（デフォルト）
+- `--image-source local --image-path /path/to/images` - ローカル画像を使用
+- `--image-source none` - 画像設定をスキップ
 
 **例**:
 ```bash
+# 基本的な使用（記事を生成して公開）
 /write-post Python環境構築 --target 初心者 --category プログラミング
-/write-post 副業の始め方 --target 中級者 --words 1500
-/write-post セキュリティ対策 --category セキュリティ
+
+# 下書きとして保存（公開しない）
+/write-post 副業の始め方 --target 中級者 --words 1500 --draft
+
+# 自動設定なし（手動で調整したい場合）
+/write-post Flutter入門 --no-auto --no-backup
+
+# ローカル画像を使用
+/write-post Chess Clockリリース --image-source local --image-path /path/to/screenshots
 ```
 
-**生成内容**:
-1. タイトル案（3つ）
-2. メタディスクリプション案
-3. カテゴリ・タグ案
-4. 記事構成（h2見出し4-5個）
-5. 記事本文（800文字以上）
-6. まとめセクション
-7. AdSense要件チェックリスト
+**処理フロー**:
+1. 📝 **記事生成** - テンプレートに基づいて記事本文を生成
+2. 🚀 **WordPress投稿** - REST APIで記事を投稿
+3. 🏷️ **タグ設定** - タグを作成・設定
+4. 🖼️ **画像設定** - アイキャッチ画像・本文画像を設定
+5. 📄 **メタディスクリプション設定** - AIOSEO APIで設定
+6. 💾 **バックアップ** - 記事一覧をバックアップ
+7. ✅ **最終報告** - 記事URL・設定内容を報告
 
-**次のステップ**:
-生成された記事をWordPressに投稿後、自動化スクリプトで最適化：
+**生成内容**:
+- タイトル案（3つ）+ メタディスクリプション
+- カテゴリ・タグ提案
+- 記事構成（h2見出し4-5個）
+- 記事本文（800文字以上）
+- まとめセクション
+- 関連記事（内部リンク）
+- AdSense要件チェックリスト
+
+**自動設定される項目**（`--auto`が有効な場合）:
+- ✅ WordPress投稿（公開または下書き）
+- ✅ タグの作成・設定
+- ✅ アイキャッチ画像の設定（Unsplashまたはローカル）
+- ✅ 本文画像の挿入（h2見出し後）
+- ✅ メタディスクリプションの設定
+- ✅ 記事一覧のバックアップ
+
+**手動調整が必要な場合**:
 ```bash
+# 自動設定をスキップして手動で調整
+/write-post テーマ --no-auto --no-backup
+
+# その後、個別に実行
 python scripts/active/add_featured_images.py
 python scripts/active/apply_post_improvements.py --mode all
+/backup-posts
 ```
 
 ## 📋 利用可能な Commands
