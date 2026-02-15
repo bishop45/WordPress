@@ -9,7 +9,9 @@
 
 ---
 
-## ✅ 完了済み: 既存記事の改善（Phase 1 + Phase 2.3）
+## ✅ 完了済み: Phase 1 + Phase 2（ほぼ完了）
+
+### Phase 1 + Phase 2.3: 既存記事の改善
 
 **現在の状態**:
 - ✅ 公開記事数: 21記事（目標20-30記事達成）
@@ -19,7 +21,14 @@
 - ✅ メタディスクリプション: 全21記事（120-160文字）
 - ✅ まとめセクション: 全21記事
 - ✅ カテゴリ・タグ: 全記事に適切に設定
-- ✅ プライバシーポリシー統合ページ作成済み
+
+### Phase 2: 必須ページ作成（ほぼ完了）
+
+**達成済み**:
+- ✅ プライバシーポリシー: AdSense・Analytics利用明記済み
+- ✅ お問い合わせページ: Google Forms埋め込み完了（iFrame）
+- ✅ プロフィールページ: 運営者情報・経歴・専門性セクション追加
+- ⚠️ フッターメニュー整備: 手動設定が必要（[設定手順](#フッターメニュー設定手順)参照）
 
 **次のステップ**: [今後の作業ロードマップ](#今後の作業ロードマップ)を参照
 
@@ -41,6 +50,7 @@ WordPress/
 ├── add_featured_images.py        # アイキャッチ画像自動設定スクリプト
 ├── improve_post_structure.py     # 記事構造分析・内部リンク提案スクリプト
 ├── apply_post_improvements.py    # 記事改善自動適用スクリプト
+├── update_pages.py               # 固定ページ更新スクリプト（NEW!）
 ├── reports/                      # 分析レポート出力先
 └── venv/                         # Python仮想環境
 ```
@@ -92,6 +102,33 @@ python apply_post_improvements.py --mode all
 - まとめセクション自動追加（見出しから要点抽出）
 - 内部リンク自動追加（関連記事セクション作成）
 - 本文画像自動追加（Unsplash API、h2見出し後に挿入）
+
+#### update_pages.py（NEW!）
+固定ページ（お問い合わせ、プロフィールなど）を更新するスクリプト。**AdSense審査対策に使用 ✅**
+
+**基本コマンド**:
+```bash
+# お問い合わせページのみ更新（DRY RUN）
+python update_pages.py --mode contact --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8" --dry-run
+
+# プロフィールページのみ更新（DRY RUN）
+python update_pages.py --mode profile --dry-run
+
+# 両方を更新（DRY RUN）
+python update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8" --dry-run
+
+# 実際に更新
+python update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8"
+```
+
+**主な機能**:
+- お問い合わせページにGoogle FormsをiFrameで埋め込み（サイト内完結型）
+- プロフィールページに運営者情報セクションを追加（運営者名、運営形態、運営開始時期）
+- プロフィールページに経歴・専門性セクションを追加（IT業界経験、資格活用例、プロジェクト実績）
+- プロフィールページにブログの目的セクションを追加
+- DRY RUNモードでプレビュー確認可能
+
+**適用済み**: お問い合わせページ（ID: 199）、プロフィールページ（ID: 2）
 
 ---
 
@@ -185,13 +222,14 @@ python improve_post_structure.py --mode suggest-links
 - [x] カテゴリ・タグ整理済み
 - [x] メタディスクリプション設定済み
 
-### ⚠️ 必須ページ（要対応）
+### ✅ 必須ページ（ほぼ完了）
 
-- [ ] **プライバシーポリシー**: AdSense・Analytics利用を明記
-- [ ] **お問い合わせページ**: メールフォーム設置
-- [ ] **運営者情報**: プロフィール充実化
+- [x] **プライバシーポリシー**: AdSense・Analytics利用を明記済み
+- [x] **お問い合わせページ**: Google Forms埋め込み完了（iFrame）
+- [x] **運営者情報**: プロフィール充実化完了（運営者情報、経歴・専門性、ブログの目的）
+- [ ] **フッターメニュー**: 手動設定が必要（[設定手順](#フッターメニュー設定手順)参照）
 
-### ⚠️ 技術・SEO設定（要対応）
+### ⚠️ 技術・SEO設定（次のステップ）
 
 - [x] HTTPS化済み
 - [ ] **Google Search Console登録**
@@ -246,15 +284,15 @@ python improve_post_structure.py --mode suggest-links
 - [x] メタディスクリプション・まとめセクション追加
 - [x] カテゴリ・タグ整理
 
-### Phase 2: 必須ページ作成（優先度：高）
-1. [ ] **プライバシーポリシーページ作成**
-   - Cookie使用、AdSense、Analytics利用を明記
-2. [ ] **お問い合わせページ作成**
-   - Contact Form 7などを利用
-3. [ ] **運営者情報充実化**
-   - プロフィール、専門分野、資格など
+### Phase 2: 必須ページ作成 ✅ ほぼ完了（フッターメニューのみ残）
+1. [x] **プライバシーポリシーページ**
+   - Cookie使用、AdSense、Analytics利用を明記済み
+2. [x] **お問い合わせページ**
+   - Google Forms埋め込み完了（iFrame）
+3. [x] **運営者情報充実化**
+   - プロフィールページに運営者情報・経歴・専門性セクション追加
 4. [ ] **フッターメニュー整備**
-   - これらのページへのリンクを追加
+   - 手動設定が必要（[設定手順](#フッターメニュー設定手順)参照）
 
 ### Phase 3: 技術・SEO対策（優先度：高）
 1. [ ] **Google Search Console登録**
@@ -335,6 +373,10 @@ python apply_post_improvements.py --mode all --dry-run
 # 記事改善の自動適用（実行）
 python apply_post_improvements.py --mode all
 
+# 固定ページ更新（お問い合わせ・プロフィール）
+python update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8" --dry-run
+python update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8"
+
 # 依存パッケージのアップデート
 pip install --upgrade -r requirements.txt
 
@@ -344,6 +386,40 @@ pip freeze > requirements.txt
 # 仮想環境の無効化
 deactivate
 ```
+
+---
+
+## フッターメニュー設定手順（手動作業 約15分）
+
+### ステップ1: メニュー作成
+
+1. WordPressダッシュボードにログイン
+2. **外観 → メニュー** をクリック
+3. 「新しいメニューを作成しましょう」をクリック
+4. **メニュー名**: 「フッターメニュー」と入力
+5. 「メニューを作成」をクリック
+
+### ステップ2: ページを追加
+
+左側の「固定ページ」セクションから以下の4つのページを選択して「メニューに追加」:
+
+- ✅ プロフィール
+- ✅ 所有資格
+- ✅ プライバシーポリシー
+- ✅ お問い合わせ
+
+### ステップ3: メニューの位置を設定
+
+1. 「メニュー設定」セクションで **「フッターメニュー」** にチェックを入れる
+2. 「メニューを保存」をクリック
+
+### ステップ4: 確認
+
+1. サイトにアクセス: https://techsimpleapp.main.jp/
+2. ページのフッター部分に4つのリンクが表示されていることを確認
+3. 各リンクをクリックして、正しいページに遷移することを確認
+
+**注意**: テーマによってはフッターメニューがサポートされていない場合があります。その場合は「外観 → ウィジェット」からフッターエリアに「ナビゲーションメニュー」ウィジェットを追加してください。
 
 ---
 
