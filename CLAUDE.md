@@ -54,22 +54,82 @@
 
 ```
 WordPress/
-├── CLAUDE.md                      # このファイル
-├── TODO_NEXT_STEPS.md            # 次のステップと作業計画
-├── PHASE3_GUIDE.md               # Phase 3（技術・SEO対策）実施ガイド
-├── PHASE4_GUIDE.md               # Phase 4（AdSense申請）実施ガイド（NEW!）
+├── CLAUDE.md                      # このファイル（プロジェクト詳細ガイド）
+├── README.md                      # クイックスタートガイド
 ├── .env                          # 環境変数（APIキー、認証情報）
 ├── .gitignore                    # Git除外設定
 ├── requirements.txt              # Python依存パッケージ
-├── add_featured_images.py        # アイキャッチ画像自動設定スクリプト
-├── improve_post_structure.py     # 記事構造分析・内部リンク提案スクリプト
-├── apply_post_improvements.py    # 記事改善自動適用スクリプト
-├── update_pages.py               # 固定ページ更新スクリプト
-├── verify_site.py                # サイト検証スクリプト（Phase 3用）
-├── final_check.py                # 申請前最終チェックスクリプト（Phase 4用）（NEW!）
+├── .claude/                      # Claude Code設定
+│   ├── settings.local.json      # ローカル設定
+│   └── skills/                  # プロジェクト固有Skills
+│       └── write-post/          # 記事作成Skill
+│           └── skillDefinition.md
+├── docs/                         # ドキュメント
+│   ├── TODO_NEXT_STEPS.md       # 次のステップと作業計画
+│   ├── PHASE3_GUIDE.md          # Phase 3（技術・SEO対策）実施ガイド
+│   └── PHASE4_GUIDE.md          # Phase 4（AdSense申請）実施ガイド
+├── scripts/                      # スクリプト
+│   ├── active/                  # アクティブなスクリプト
+│   │   ├── add_featured_images.py
+│   │   ├── improve_post_structure.py
+│   │   ├── apply_post_improvements.py
+│   │   ├── update_pages.py
+│   │   ├── verify_site.py
+│   │   └── final_check.py
+│   └── archive/                 # 古いスクリプト（アーカイブ）
+├── templates/                    # 記事作成テンプレート
+│   ├── post_template.md         # AdSense対応記事テンプレート
+│   └── post_guidelines.md       # 記事作成ガイドライン
 ├── reports/                      # 分析レポート出力先
+├── backups/                      # バックアップファイル
+├── archive/                      # 作業用一時ファイル（アーカイブ）
 └── venv/                         # Python仮想環境
 ```
+
+### Claude Code Skills（NEW! 🚀）
+
+#### write-post Skill
+AdSense対応のブログ記事を自動生成するSkillです。テンプレートとガイドラインに基づいて、記事の構成から本文まで一括生成します。
+
+**使用方法**:
+```bash
+/write-post [テーマ] --target [読者ターゲット] --category [カテゴリ] --words [文字数]
+```
+
+**オプション**:
+- `--target`: 読者ターゲット（初心者/中級者/上級者）
+- `--words`: 目標文字数（デフォルト: 1000-1500）
+- `--category`: カテゴリ（プログラミング/アプリ開発/副業/投資/生成AI/セキュリティ）
+
+**使用例**:
+```bash
+# Python環境構築の記事を初心者向けに生成
+/write-post Python環境構築 --target 初心者 --category プログラミング
+
+# 副業の記事を中級者向けに1500文字で生成
+/write-post 副業の始め方 --target 中級者 --words 1500
+
+# セキュリティ対策の記事を生成
+/write-post セキュリティ対策 --category セキュリティ
+```
+
+**生成内容**:
+- タイトル案（60文字以内）
+- メタディスクリプション（120-160文字）
+- カテゴリ・タグ提案
+- 記事構成（h2見出し4-5個）
+- 記事本文（800文字以上）
+- まとめセクション
+- AdSense要件チェックリスト
+
+**次のステップ**:
+生成された記事をWordPressに投稿後、以下のスクリプトで自動最適化：
+```bash
+python scripts/active/add_featured_images.py
+python scripts/active/apply_post_improvements.py --mode all
+```
+
+---
 
 ### 主要ツール
 
@@ -252,44 +312,71 @@ UNSPLASH_SECRET_KEY=あなたのシークレットキー
 **申請前の最終チェック**
 ```bash
 # 最終チェックを実行（Phase 4申請前に必須）
-python final_check.py
+python scripts/active/final_check.py
 ```
 
-詳細な手順は [PHASE4_GUIDE.md](PHASE4_GUIDE.md) を参照してください。
+詳細な手順は [docs/PHASE4_GUIDE.md](docs/PHASE4_GUIDE.md) を参照してください。
 
 ### Phase 3: サイト検証（完了 ✅）
 
 **サイトの技術・SEO要件を確認**
 ```bash
 # サイト検証を実行（Phase 3実施前に推奨）
-python verify_site.py
+python scripts/active/verify_site.py
 ```
 
-詳細な手順は [PHASE3_GUIDE.md](PHASE3_GUIDE.md) を参照してください。
+詳細な手順は [docs/PHASE3_GUIDE.md](docs/PHASE3_GUIDE.md) を参照してください。
 
 ### 新規記事作成時のワークフロー
 
-**✅ 既存記事への改善は完了済み**。新規記事作成時のみ以下のツールを使用してください。
+**✅ 既存記事への改善は完了済み**。新規記事作成時は以下のワークフローを使用してください。
+
+#### 方法1: Claude Code Skillを使用（推奨）
 
 ```bash
-# 1. アイキャッチ画像設定（画像がない記事のみ）
-python add_featured_images.py
+# write-post Skillで記事を生成
+/write-post [テーマ] --target [初心者/中級者/上級者] --category [カテゴリ]
 
-# 2. 記事改善の一括適用（DRY RUNで確認）
-python apply_post_improvements.py --mode all --dry-run
+# 例
+/write-post Python環境構築 --target 初心者 --category プログラミング
+```
 
-# 3. 問題なければ実行
-python apply_post_improvements.py --mode all
+生成された記事をWordPressに投稿後、自動最適化スクリプトを実行：
+
+```bash
+# アイキャッチ画像設定
+python scripts/active/add_featured_images.py
+
+# 記事改善の一括適用
+python scripts/active/apply_post_improvements.py --mode all --dry-run
+python scripts/active/apply_post_improvements.py --mode all
+```
+
+#### 方法2: 手動作成
+
+```bash
+# 1. テンプレートを確認
+cat templates/post_template.md
+cat templates/post_guidelines.md
+
+# 2. WordPress管理画面で記事を作成・公開
+
+# 3. アイキャッチ画像設定
+python scripts/active/add_featured_images.py
+
+# 4. 記事改善の一括適用
+python scripts/active/apply_post_improvements.py --mode all --dry-run
+python scripts/active/apply_post_improvements.py --mode all
 ```
 
 ### 記事構造の分析（必要時のみ）
 
 ```bash
 # 記事構造分析レポート生成
-python improve_post_structure.py --mode analyze
+python scripts/active/improve_post_structure.py --mode analyze
 
 # 内部リンク提案生成
-python improve_post_structure.py --mode suggest-links
+python scripts/active/improve_post_structure.py --mode suggest-links
 ```
 
 詳細な使用方法は各スクリプトファイルのコメントを参照してください。
@@ -465,32 +552,32 @@ source venv/bin/activate
 
 # === Phase 4: AdSense申請準備 ===
 # 申請前最終チェック（Phase 1-3のすべての項目を確認）
-python final_check.py
+python scripts/active/final_check.py
 
 # === Phase 3: サイト検証 ===
 # サイト検証（XMLサイトマップ、robots.txt、必須ページ、HTTPS確認）
-python verify_site.py
+python scripts/active/verify_site.py
 
 # === 記事管理 ===
 # アイキャッチ画像の一括設定
-python add_featured_images.py
+python scripts/active/add_featured_images.py
 
 # 記事構造分析レポート生成
-python improve_post_structure.py --mode analyze
+python scripts/active/improve_post_structure.py --mode analyze
 
 # 内部リンク提案生成
-python improve_post_structure.py --mode suggest-links
+python scripts/active/improve_post_structure.py --mode suggest-links
 
 # 記事改善の自動適用（DRY RUNモードで確認）
-python apply_post_improvements.py --mode all --dry-run
+python scripts/active/apply_post_improvements.py --mode all --dry-run
 
 # 記事改善の自動適用（実行）
-python apply_post_improvements.py --mode all
+python scripts/active/apply_post_improvements.py --mode all
 
 # === 固定ページ管理 ===
 # 固定ページ更新（お問い合わせ・プロフィール）
-python update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8" --dry-run
-python update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8"
+python scripts/active/update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8" --dry-run
+python scripts/active/update_pages.py --mode all --google-form-url "https://forms.gle/smgXvkrLdsu9m4rZ8"
 
 # === 環境管理 ===
 # 依存パッケージのアップデート
