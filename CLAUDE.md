@@ -86,20 +86,20 @@ WordPress/
 └── venv/                         # Python仮想環境
 ```
 
-### Claude Code Skills（NEW! 🚀）
+### Claude Code Skills & Commands（NEW! 🚀）
 
-#### write-post Skill
+Claude Code を拡張するための Skills と Commands を整備しました。詳細は [.claude/README.md](.claude/README.md) を参照してください。
+
+#### Skills（複雑なタスク向け）
+
+**write-post Skill** - AdSense対応記事生成
+
 AdSense対応のブログ記事を自動生成するSkillです。テンプレートとガイドラインに基づいて、記事の構成から本文まで一括生成します。
 
 **使用方法**:
 ```bash
-/write-post [テーマ] --target [読者ターゲット] --category [カテゴリ] --words [文字数]
+/write-post <テーマ> [--target 初心者/中級者/上級者] [--words 文字数] [--category カテゴリ]
 ```
-
-**オプション**:
-- `--target`: 読者ターゲット（初心者/中級者/上級者）
-- `--words`: 目標文字数（デフォルト: 1000-1500）
-- `--category`: カテゴリ（プログラミング/アプリ開発/副業/投資/生成AI/セキュリティ）
 
 **使用例**:
 ```bash
@@ -108,14 +108,10 @@ AdSense対応のブログ記事を自動生成するSkillです。テンプレ�
 
 # 副業の記事を中級者向けに1500文字で生成
 /write-post 副業の始め方 --target 中級者 --words 1500
-
-# セキュリティ対策の記事を生成
-/write-post セキュリティ対策 --category セキュリティ
 ```
 
 **生成内容**:
-- タイトル案（60文字以内）
-- メタディスクリプション（120-160文字）
+- タイトル案（3つ）+ メタディスクリプション
 - カテゴリ・タグ提案
 - 記事構成（h2見出し4-5個）
 - 記事本文（800文字以上）
@@ -123,11 +119,32 @@ AdSense対応のブログ記事を自動生成するSkillです。テンプレ�
 - AdSense要件チェックリスト
 
 **次のステップ**:
-生成された記事をWordPressに投稿後、以下のスクリプトで自動最適化：
 ```bash
 python scripts/active/add_featured_images.py
 python scripts/active/apply_post_improvements.py --mode all
 ```
+
+#### Commands（シンプルなタスク向け）
+
+**check-adsense** - AdSense要件チェック
+```bash
+/check-adsense <記事URL または 記事ID>
+```
+記事がAdSense審査要件を満たしているか確認し、合格/要改善/不合格の判定と改善提案を提供。
+
+**analyze-post** - 記事分析
+```bash
+/analyze-post <記事URL または 記事ID>
+```
+SEO・可読性・コンテンツ品質を分析し、優先度別の改善提案と総合スコアを提供。
+
+**quick-fix** - クイックフィックス
+```bash
+/quick-fix <記事ID>
+```
+メタディスクリプション、画像、まとめ、内部リンクなどの一般的な問題を自動修正。
+
+**詳細**: [.claude/README.md](.claude/README.md) を参照
 
 ---
 
