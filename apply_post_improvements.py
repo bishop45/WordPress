@@ -328,7 +328,7 @@ def load_internal_link_suggestions(csv_path):
                 'target_id': int(row['提案リンク先ID']),
                 'target_title': row['提案リンク先タイトル'],
                 'target_url': row['提案リンク先URL'],
-                'similarity': float(row['類似度スコア']),
+                'similarity': float(row['総合スコア']),
                 'keywords': row['共通キーワード']
             })
 
@@ -421,30 +421,42 @@ def extract_keywords(title):
     return random.choice(FALLBACK_KEYWORDS)
 
 
-def search_unsplash_image(query, config):
-    """Unsplash APIで画像を検索する。レート制限情報も返す。"""
+def search_unsplash_images(query, config, per_page=10):
+    """Unsplash APIで画像を検索する（複数枚）。レート制限情報も返す。"""
     url = "https://api.unsplash.com/search/photos"
     headers = {"Authorization": f"Client-ID {config['UNSPLASH_ACCESS_KEY']}"}
-    params = {"query": query, "per_page": 1, "orientation": "landscape"}
+    params = {"query": query, "per_page": min(per_page, 30), "orientation": "landscape"}
 
     response = requests.get(url, headers=headers, params=params)
 
     rate_remaining = int(response.headers.get("X-Ratelimit-Remaining", 50))
 
     if response.status_code != 200:
-        return None, rate_remaining
+        return [], rate_remaining
 
     data = response.json()
     if data["total"] == 0 or not data["results"]:
-        return None, rate_remaining
+        return [], rate_remaining
 
-    photo = data["results"][0]
-    return {
-        "url": photo["urls"]["regular"],
-        "download_location": photo["links"]["download_location"],
-        "description": photo.get("description") or photo.get("alt_description") or query,
-        "photographer": photo["user"]["name"],
-    }, rate_remaining
+    # 複数の画像情報を返す
+    images = []
+    for photo in data["results"]:
+        images.append({
+            "url": photo["urls"]["regular"],
+            "download_location": photo["links"]["download_location"],
+            "description": photo.get("description") or photo.get("alt_description") or query,
+            "photographer": photo["user"]["name"],
+        })
+
+    return images, rate_remaining
+
+
+def search_unsplash_image(query, config):
+    """Unsplash APIで画像を検索する（1枚）。後方互換性のため残す。"""
+    images, rate_remaining = search_unsplash_images(query, config, per_page=1)
+    if not images:
+        return None, rate_remaining
+    return images[0], rate_remaining
 
 
 def trigger_unsplash_download(download_location, config):
@@ -534,7 +546,7 @@ def insert_images_into_content(html_content, images, post_title):
 
 
 def add_images_to_post(post, max_images, config, dry_run=False):
-    """記事に画像を追加"""
+    """記事に画像を追加（バリエーション改善版）"""
     if 'UNSPLASH_ACCESS_KEY' not in config:
         return False, "Unsplash APIキーが設定されていません"
 
@@ -544,53 +556,75 @@ def add_images_to_post(post, max_images, config, dry_run=False):
     # キーワード抽出
     keyword = extract_keywords(title)
 
-    # 画像検索（複数枚）
+    # 画像検索（複数枚を一度に取得）
+    images_from_unsplash, rate_remaining = search_unsplash_images(keyword, config, per_page=max_images * 2)
+
+    # 見つからなければフォールバックキーワードで再検索
+    if not images_from_unsplash:
+        # 異なるフォールバックキーワードをローテーション
+        used_fallbacks = set()
+        for fallback in FALLBACK_KEYWORDS:
+            if fallback in used_fallbacks:
+                continue
+            used_fallbacks.add(fallback)
+
+            images_from_unsplash, rate_remaining = search_unsplash_images(fallback, config, per_page=max_images * 2)
+            if images_from_unsplash:
+                break
+
+    if not images_from_unsplash:
+        return False, "画像が見つかりませんでした"
+
+    # 重複チェック用のセット
+    used_urls = set()
     images_to_insert = []
-    rate_remaining = 50
 
-    for i in range(max_images):
-        # Unsplashで画像検索
-        image_info, rate_remaining = search_unsplash_image(keyword, config)
+    # 画像を選択（インデックスベース、重複なし）
+    for i in range(min(max_images, len(images_from_unsplash))):
+        # インデックスiの画像を選択
+        if i < len(images_from_unsplash):
+            image_info = images_from_unsplash[i]
 
-        # 見つからなければフォールバックキーワードで再検索
-        if image_info is None:
-            fallback = random.choice(FALLBACK_KEYWORDS)
-            image_info, rate_remaining = search_unsplash_image(fallback, config)
+            # 重複チェック
+            if image_info['url'] in used_urls:
+                # 重複している場合は次の画像を試す
+                for j in range(i + 1, len(images_from_unsplash)):
+                    if images_from_unsplash[j]['url'] not in used_urls:
+                        image_info = images_from_unsplash[j]
+                        break
 
-        if image_info is None:
-            break  # これ以上画像が見つからない
+            used_urls.add(image_info['url'])
 
-        if not dry_run:
-            # Unsplashダウンロードトリガー（利用規約準拠）
-            trigger_unsplash_download(image_info["download_location"], config)
+            if not dry_run:
+                # Unsplashダウンロードトリガー（利用規約準拠）
+                trigger_unsplash_download(image_info["download_location"], config)
 
-            # 画像ダウンロード
-            image_data = download_image(image_info["url"])
+                # 画像ダウンロード
+                image_data = download_image(image_info["url"])
 
-            # WordPressにアップロード
-            filename = f"article-{post['id']}-image-{i+1}.jpg"
-            alt_text = f"{title} - {image_info['description']}"
-            media_id, source_url = upload_to_wordpress(image_data, filename, alt_text, config)
+                # WordPressにアップロード
+                filename = f"article-{post['id']}-image-{i+1}.jpg"
+                alt_text = f"{title} - {image_info['description']}"
+                media_id, source_url = upload_to_wordpress(image_data, filename, alt_text, config)
 
-            images_to_insert.append({
-                'url': source_url,
-                'alt': alt_text,
-                'photographer': image_info['photographer']
-            })
-        else:
-            # DRY RUNモードでは画像情報のみ記録
-            images_to_insert.append({
-                'url': image_info['url'],
-                'alt': f"{title} - {image_info['description']}",
-                'photographer': image_info['photographer']
-            })
+                images_to_insert.append({
+                    'url': source_url,
+                    'alt': alt_text,
+                    'photographer': image_info['photographer']
+                })
+            else:
+                # DRY RUNモードでは画像情報のみ記録
+                images_to_insert.append({
+                    'url': image_info['url'],
+                    'alt': f"{title} - {image_info['description']}",
+                    'photographer': image_info['photographer']
+                })
 
-        # レート制限チェック
-        if rate_remaining <= 5:
-            print(f"\n        ⚠️ Unsplash APIレート制限に近づいています（残り{rate_remaining}）")
-            break
+            time.sleep(0.3)  # API負荷軽減
 
-        time.sleep(0.5)  # API負荷軽減
+    # レート制限チェック
+    if rate_remaining <= 5:
+        print(f"\n        ⚠️ Unsplash APIレート制限に近づいています（残り{rate_remaining}）")
 
     if not images_to_insert:
         return False, "画像が見つかりませんでした"

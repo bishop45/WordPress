@@ -14,6 +14,9 @@ import requests
 import html as html_module
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from janome.tokenizer import Tokenizer
 
 
 def load_config():
@@ -216,8 +219,46 @@ def generate_structure_report(analysis_results, output_path):
     return output_path
 
 
+def extract_keywords_from_content(post):
+    """記事の本文からキーワードを抽出（形態素解析使用）"""
+    # タイトルと本文を取得
+    title = html_module.unescape(post['title']['rendered'])
+    html_content = post['content']['rendered']
+
+    # HTMLタグを除去してテキストのみ取得
+    text_content = extract_text_content(html_content)
+
+    # タイトルと本文を結合（タイトルの重要度を上げるため3回繰り返す）
+    full_text = f"{title} {title} {title} {text_content}"
+
+    # janomeで形態素解析
+    tokenizer = Tokenizer()
+
+    # 名詞と動詞を抽出（ストップワード除外）
+    stop_words = {
+        'これ', 'それ', 'あれ', 'この', 'その', 'あの', 'ここ', 'そこ', 'あそこ',
+        'こと', 'もの', 'ため', 'よう', 'とき', 'の', 'は', 'が', 'を', 'に',
+        'で', 'と', 'から', 'まで', 'より', 'も', 'や', 'など', 'か', 'ね',
+        '年', '月', '日', '時', '分', '秒', '人', '方', '点', '件', '個', '本',
+        'する', 'なる', 'ある', 'いる', 'できる', 'れる', 'られる', 'せる', 'させる'
+    }
+
+    keywords = []
+    for token in tokenizer.tokenize(full_text):
+        parts = token.part_of_speech.split(',')
+        pos = parts[0]  # 品詞
+        base_form = token.base_form  # 基本形
+
+        # 名詞（一般、固有名詞、サ変接続）または動詞を抽出
+        if pos in ['名詞', '動詞']:
+            if len(base_form) >= 2 and base_form not in stop_words:
+                keywords.append(base_form)
+
+    return keywords
+
+
 def extract_keywords(post):
-    """記事からキーワードを抽出"""
+    """記事からキーワードを抽出（後方互換性のため残す）"""
     keywords = set()
 
     # タイトルから
@@ -227,6 +268,69 @@ def extract_keywords(post):
     keywords.update([w for w in title_words if len(w) >= 2])
 
     return keywords
+
+
+def extract_categories_tags(post):
+    """記事のカテゴリとタグを抽出"""
+    categories = []
+    tags = []
+
+    # WordPress REST APIレスポンスから直接取得
+    if 'categories' in post and post['categories']:
+        categories = post['categories']
+    if 'tags' in post and post['tags']:
+        tags = post['tags']
+
+    return categories, tags
+
+
+def calculate_category_tag_score(post1, post2):
+    """カテゴリ・タグの類似度スコアを計算"""
+    cat1, tag1 = extract_categories_tags(post1)
+    cat2, tag2 = extract_categories_tags(post2)
+
+    score = 0.0
+
+    # 共通カテゴリがあれば +0.3
+    if set(cat1) & set(cat2):
+        score += 0.3
+
+    # 共通タグ1つにつき +0.1（最大0.5まで）
+    common_tags = len(set(tag1) & set(tag2))
+    score += min(common_tags * 0.1, 0.5)
+
+    return score
+
+
+def calculate_tfidf_similarity(all_posts):
+    """TF-IDF分析で記事間の類似度行列を計算"""
+    # 各記事のテキスト内容を取得
+    texts = []
+    for post in all_posts:
+        keywords = extract_keywords_from_content(post)
+        # キーワードを空白区切りで連結
+        text = ' '.join(keywords)
+        texts.append(text)
+
+    # TF-IDF Vectorizer
+    vectorizer = TfidfVectorizer(
+        max_features=1000,  # 最大1000個の特徴語
+        min_df=1,  # 最低1記事に出現
+        max_df=0.8  # 最大80%の記事に出現（頻出語を除外）
+    )
+
+    try:
+        # TF-IDF行列を計算
+        tfidf_matrix = vectorizer.fit_transform(texts)
+
+        # コサイン類似度行列を計算
+        similarity_matrix = cosine_similarity(tfidf_matrix)
+
+        return similarity_matrix
+    except ValueError:
+        # テキストが少なすぎる場合などのエラー時は空の行列を返す
+        import numpy as np
+        return np.zeros((len(all_posts), len(all_posts)))
 
 
 def calculate_similarity(keywords1, keywords2):
@@ -244,32 +348,49 @@ def calculate_similarity(keywords1, keywords2):
 
 
 def suggest_internal_links(all_posts):
-    """内部リンク候補を提案"""
+    """内部リンク候補を提案（TF-IDF + カテゴリ・タグ）"""
+    print("TF-IDF分析を実行中...")
+    tfidf_similarity_matrix = calculate_tfidf_similarity(all_posts)
+
+    print("カテゴリ・タグ類似度を計算中...")
     suggestions = []
 
-    for target_post in all_posts:
-        target_keywords = extract_keywords(target_post)
+    for i, target_post in enumerate(all_posts):
         target_title = html_module.unescape(target_post['title']['rendered'])
 
-        # 他の記事との類似度を計算
+        # 他の記事との総合スコアを計算
         similarities = []
-        for other_post in all_posts:
-            if other_post['id'] == target_post['id']:
+        for j, other_post in enumerate(all_posts):
+            if i == j:
                 continue  # 自分自身は除外
 
-            other_keywords = extract_keywords(other_post)
-            similarity = calculate_similarity(target_keywords, other_keywords)
+            # TF-IDF類似度（コサイン類似度）
+            tfidf_score = tfidf_similarity_matrix[i][j]
 
-            if similarity > 0:  # 類似度が0より大きい場合のみ
+            # カテゴリ・タグスコア
+            cat_tag_score = calculate_category_tag_score(target_post, other_post)
+
+            # 総合スコア = (TF-IDF × 0.7) + (カテゴリ・タグ × 0.3)
+            total_score = (tfidf_score * 0.7) + (cat_tag_score * 0.3)
+
+            # スコアが0.1以上の記事のみ提案
+            if total_score >= 0.1:
+                # 共通キーワード抽出（表示用）
+                target_keywords = extract_keywords_from_content(target_post)
+                other_keywords = extract_keywords_from_content(other_post)
+                common_keywords = set(target_keywords[:50]) & set(other_keywords[:50])
+
                 similarities.append({
                     'post': other_post,
-                    'similarity': similarity,
-                    'common_keywords': list(target_keywords & other_keywords)
+                    'total_score': total_score,
+                    'tfidf_score': tfidf_score,
+                    'cat_tag_score': cat_tag_score,
+                    'common_keywords': list(common_keywords)
                 })
 
-        # 類似度でソートして上位5件を取得
-        similarities.sort(key=lambda x: x['similarity'], reverse=True)
-        top_suggestions = similarities[:5]
+        # 総合スコアでソートして上位15件を取得
+        similarities.sort(key=lambda x: x['total_score'], reverse=True)
+        top_suggestions = similarities[:15]
 
         # 提案リストに追加
         for suggestion in top_suggestions:
@@ -283,8 +404,10 @@ def suggest_internal_links(all_posts):
                 'target_id': other_post['id'],
                 'target_title': other_title,
                 'target_url': other_post['link'],
-                'similarity': suggestion['similarity'],
-                'common_keywords': ', '.join(suggestion['common_keywords'][:5])  # 最大5個
+                'similarity': suggestion['total_score'],
+                'tfidf_score': suggestion['tfidf_score'],
+                'cat_tag_score': suggestion['cat_tag_score'],
+                'common_keywords': ', '.join(list(suggestion['common_keywords'])[:10])  # 最大10個
             })
 
     return suggestions
@@ -297,7 +420,7 @@ def generate_links_report(suggestions, output_path):
         writer.writerow([
             '記事ID', 'タイトル', 'URL', '提案リンク先ID',
             '提案リンク先タイトル', '提案リンク先URL',
-            '類似度スコア', '共通キーワード'
+            '総合スコア', 'TF-IDFスコア', 'カテゴリ・タグスコア', '共通キーワード'
         ])
 
         for suggestion in suggestions:
@@ -309,6 +432,8 @@ def generate_links_report(suggestions, output_path):
                 suggestion['target_title'],
                 suggestion['target_url'],
                 f"{suggestion['similarity']:.3f}",
+                f"{suggestion.get('tfidf_score', 0):.3f}",
+                f"{suggestion.get('cat_tag_score', 0):.3f}",
                 suggestion['common_keywords']
             ])
 

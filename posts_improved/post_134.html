@@ -1,0 +1,143 @@
+<h2>はじめに</h2>
+
+<p>Photo by Ilya Pavlov on Unsplash</p>
+
+<p>AWSでServerless Frameworkを使ってサーバーレスアプリケーションをデプロイする際、突然「CREATE_FAILED」というエラーに遭遇したことはありませんか？私も最近、本番環境へのデプロイ中にこのエラーに直面し、数時間のトラブルシューティングを余儀なくされました。</p>
+
+<p>この記事では、実際に私が経験した「apigateway:TagResource」権限不足によるデプロイ失敗と、その解決プロセスを詳しく解説します。同じトラブルに遭遇した方はもちろん、これからServerless Frameworkを使う予定の方にも、事前にIAM権限を適切に設定するための実践的な知識を提供します。</p>
+
+<h2>発生したエラーの詳細</h2>
+
+<p>Photo by Conny Schneider on Unsplash</p>
+
+<p>Serverless Frameworkで「sls deploy」コマンドを実行した際、以下のようなエラーメッセージが表示されました。</p>
+
+<pre><code>リソース HttpApiStage は CREATE_FAILED 状態です
+User is not authorized to perform: apigateway:TagResource on resource: arn:aws:apigateway:ap-northeast-1::/apis/xxxxx/stages/default
+</code></pre>
+
+<h3>エラーの原因を理解する</h3>
+
+<p>このエラーは、CloudFormationがAPI Gateway HTTP APIのステージを作成する際に、リソースにタグを付与しようとした時点で発生しました。Serverless Frameworkは内部的にCloudFormationを使用してAWSリソースをデプロイしますが、その際に自動的にタグ付けを行います。</p>
+
+<p>しかし、デプロイに使用しているIAMユーザーまたはロールに「apigateway:TagResource」権限が付与されていなかったため、この操作が拒否されたのです。一見シンプルな権限不足ですが、これはServerless Frameworkを使う多くの開発者が見落としがちなポイントです。</p>
+
+<h3>なぜこの権限が必要なのか</h3>
+
+<p>AWS API Gatewayでは、リソース管理とコスト配分のためにタグ付けが推奨されています。Serverless Frameworkは、デプロイしたリソースを追跡・管理するために、自動的に以下のようなタグを付与します。</p>
+
+<ul>
+<li>サービス名（SERVERLESS_SERVICE）</li>
+<li>ステージ名（SERVERLESS_STAGE）</li>
+<li>デプロイ日時（SERVERLESS_ALIAS）</li>
+</ul>
+
+<p>これらのタグは、複数のサービスやステージを運用する際に非常に有用ですが、そのためには適切なIAM権限が必要になります。</p>
+
+<h2>解決策：IAMポリシーの適切な設定</h2>
+
+<p>Photo by Nastuh Abootalebi on Unsplash</p>
+
+<p>この問題を解決するには、デプロイに使用しているIAMユーザーまたはロールに、必要な権限を追加する必要があります。以下、具体的な手順を説明します。</p>
+
+<h3>Step 1: 必要な権限を特定する</h3>
+
+<p>今回のケースで必要な権限は「apigateway:TagResource」ですが、実際にはServerless Frameworkを使った開発では、他にも多くの権限が必要です。以下は、最小限必要な権限の一例です。</p>
+
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:POST",
+        "apigateway:GET",
+        "apigateway:PUT",
+        "apigateway:DELETE",
+        "apigateway:PATCH",
+        "apigateway:TagResource",
+        "apigateway:UntagResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+</code></pre>
+
+<h3>Step 2: IAMポリシーを作成・アタッチする</h3>
+
+<p>AWS Management Consoleから、以下の手順でポリシーを設定します。</p>
+
+<ol>
+<li>IAMコンソールを開き、対象のユーザーまたはロールを選択</li>
+<li>「ポリシーをアタッチ」をクリック</li>
+<li>カスタムポリシーを作成するか、既存のポリシーを編集</li>
+<li>上記のJSON形式の権限を追加</li>
+<li>変更を保存</li>
+</ol>
+
+<h3>Step 3: 再デプロイと確認</h3>
+
+<p>権限を追加した後、再度「sls deploy」コマンドを実行します。私の場合、このステップで無事にデプロイが成功し、API Gatewayのエンドポイントが正常に作成されました。デプロイ時間は約2分程度でした。</p>
+
+<h3>本番環境での推奨事項</h3>
+
+<p>セキュリティのベストプラクティスとして、本番環境では以下の点に注意してください。</p>
+
+<ul>
+<li>Resource を "*" ではなく、具体的なARNに限定する</li>
+<li>最小権限の原則に従い、必要な権限のみを付与する</li>
+<li>定期的にIAMポリシーをレビューし、不要な権限を削除する</li>
+<li>CloudTrailでAPI呼び出しをログ記録し、権限の使用状況を監視する</li>
+</ul>
+
+<h2>追加のトラブルシューティング：DynamoDBのValidationException</h2>
+
+<p>同じ開発プロジェクトで、もう一つ別のエラーにも遭遇しました。DynamoDBへのバッチ書き込み時に「ValidationException」が発生したケースです。</p>
+
+<h3>エラーの原因</h3>
+
+<p>このエラーは、DynamoDBテーブルに書き込もうとしたデータの形式が、テーブルのスキーマ定義と一致していなかったことが原因でした。具体的には、パーティションキーのデータ型が文字列（String）で定義されているのに、数値（Number）を渡していました。</p>
+
+<h3>解決方法</h3>
+
+<p>データを送信する前に、以下のような検証ロジックを追加することで解決しました。</p>
+
+<pre><code>// データ型を明示的に文字列に変換
+const item = {
+  id: String(numericId),  // 数値を文字列に変換
+  timestamp: Date.now(),
+  data: JSON.stringify(payload)
+};
+</code></pre>
+
+<p>この経験から学んだのは、DynamoDBを使う際は、データ型の整合性を事前にしっかりチェックすることの重要性です。特にTypeScriptを使っている場合は、型定義をしっかり行うことで、このようなエラーを未然に防ぐことができます。</p>
+
+<h2>Serverless FrameworkでのIAM権限管理のベストプラクティス</h2>
+
+<p>今回の経験を踏まえて、Serverless Frameworkを使う際のIAM権限管理について、いくつか実践的なアドバイスを共有します。</p>
+
+<h3>1. CI/CD用の専用IAMユーザーを作成する</h3>
+
+<p>本番環境へのデプロイは、個人のAWSアカウントではなく、CI/CD専用のIAMユーザーを作成して行うことを推奨します。これにより、権限の管理が容易になり、監査ログも追跡しやすくなります。</p>
+
+<h3>2. serverless.ymlでiamRoleStatementsを定義する</h3>
+
+<p>Lambda関数の実行に必要な権限は、serverless.ymlファイル内で明示的に定義することができます。これにより、Infrastructure as Codeの原則に従った管理が可能になります。</p>
+
+<h3>3. Serverless Framework Dashboardの活用</h3>
+
+<p>公式のServerless Framework Dashboardを使用すると、デプロイ履歴やエラーログを一元管理でき、権限エラーの早期発見に役立ちます。</p>
+
+<h2>まとめ</h2>
+
+<ul>
+<li>Serverless Frameworkのデプロイには、API Gateway操作のための適切なIAM権限が必須です</li>
+<li>特に「apigateway:TagResource」権限は見落としやすいポイントなので、事前にポリシーに含めておきましょう</li>
+<li>セキュリティのベストプラクティスとして、最小権限の原則に従い、必要な権限のみを付与することが重要です</li>
+<li>DynamoDBを使う際は、データ型の整合性チェックを徹底し、ValidationExceptionを未然に防ぎましょう</li>
+<li>本番環境では、CI/CD専用のIAMユーザーを作成し、権限管理を適切に行うことが推奨されます</li>
+<li>エラーが発生した際は、CloudFormationスタックのイベントログを確認することで、根本原因を特定できます</li>
+</ul>
+
+<p>AWSとServerless Frameworkを使った開発では、このようなIAM権限に関するトラブルは避けて通れません。しかし、一度経験して適切に対処法を理解しておけば、次回からはスムーズにデプロイができるようになります。この記事が、同じ問題に直面した方の解決の一助になれば幸いです。</p>
