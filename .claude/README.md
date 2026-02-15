@@ -14,7 +14,8 @@
 └── commands/                  # Commands（シンプルなタスク）
     ├── check-adsense.md      # AdSense要件チェック
     ├── analyze-post.md       # 記事分析
-    └── quick-fix.md          # クイックフィックス
+    ├── quick-fix.md          # クイックフィックス
+    └── backup-posts.md       # 記事一覧バックアップ
 ```
 
 ## 🎯 Skills vs Commands
@@ -173,6 +174,46 @@ python scripts/active/apply_post_improvements.py --mode all --post-id <ID> --dry
 python scripts/active/apply_post_improvements.py --mode all --post-id <ID>
 ```
 
+---
+
+### `/backup-posts` - 記事一覧バックアップ
+
+**説明**: WordPress記事一覧をJSON・CSV形式でバックアップします。記事作成・更新後に実行することを推奨します。
+
+**使い方**:
+```bash
+/backup-posts
+```
+
+**バックアップ内容**:
+- **JSON形式**: 完全なデータ（全フィールド）
+- **CSV形式**: 主要データ（ID、タイトル、URL、ステータス、公開日、更新日、カテゴリ数、タグ数、文字数、アイキャッチ画像）
+
+**保存先**:
+```
+backups/
+├── posts_backup_YYYYMMDD_HHMMSS.json
+└── posts_backup_YYYYMMDD_HHMMSS.csv
+```
+
+**実行方法**:
+```bash
+# Pythonスクリプトで実行
+python scripts/active/backup_posts.py
+```
+
+**推奨タイミング**:
+1. 記事作成後（必須）
+2. 記事更新後（できるだけ）
+3. 定期バックアップ（週1回程度）
+
+**出力例**:
+```
+✓ 21件の記事を取得しました
+✓ JSON backup saved: backups/posts_backup_20260215_143022.json
+✓ CSV backup saved: backups/posts_backup_20260215_143022.csv
+```
+
 ## 🚀 ワークフロー例
 
 ### 新規記事作成のワークフロー
@@ -187,13 +228,18 @@ python scripts/active/apply_post_improvements.py --mode all --post-id <ID>
    - カテゴリ・タグを設定
    - 公開
 
-3. **自動最適化**:
+3. **記事一覧バックアップ**（重要）:
+   ```bash
+   /backup-posts
+   ```
+
+4. **自動最適化**:
    ```bash
    python scripts/active/add_featured_images.py
    python scripts/active/apply_post_improvements.py --mode all
    ```
 
-4. **確認**:
+5. **確認**:
    ```bash
    /check-adsense 123
    ```
@@ -213,7 +259,12 @@ python scripts/active/apply_post_improvements.py --mode all --post-id <ID>
    /quick-fix 123
    ```
 
-4. **再確認**:
+4. **記事一覧バックアップ**:
+   ```bash
+   /backup-posts
+   ```
+
+5. **再確認**:
    ```bash
    /check-adsense 123
    ```
@@ -270,5 +321,6 @@ disable-model-invocation: true
 ## 📝 更新履歴
 
 - **2026-02-15**: 初版作成
-  - write-post Skill 追加
-  - check-adsense、analyze-post、quick-fix Commands 追加
+  - write-post Skill 追加（内部リンク作成機能を含む）
+  - check-adsense、analyze-post、quick-fix、backup-posts Commands 追加
+  - 記事作成後の自動バックアップ機能を整備
