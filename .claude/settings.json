@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/masashi/Documents/private/Habit/docs/**)",
+      "Read(//Users/masashi/Documents/private/Habit/assets/store/screenshots/ja/**)"
+    ]
+  }
+}
