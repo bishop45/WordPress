@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(//Users/masashi/Documents/private/Habit/docs/**)",
-      "Read(//Users/masashi/Documents/private/Habit/assets/store/screenshots/ja/**)"
+      "Read(//Users/masashi/Documents/private/Habit/assets/store/screenshots/ja/**)",
+      "Bash(gh pr view:*)"
     ]
   }
 }
