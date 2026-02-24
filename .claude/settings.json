@@ -3,7 +3,8 @@
     "allow": [
       "Read(//Users/masashi/Documents/private/Habit/docs/**)",
       "Read(//Users/masashi/Documents/private/Habit/assets/store/screenshots/ja/**)",
-      "Bash(gh pr view:*)"
+      "Bash(gh pr view:*)",
+      "WebFetch(domain:www.ipa.go.jp)"
     ]
   }
 }
